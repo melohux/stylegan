@@ -26,6 +26,8 @@ from .tfutil import TfExpression, TfExpressionEx
 _import_handlers = []  # Custom import handlers for dealing with legacy data in pickle import.
 _import_module_src = dict()  # Source code for temporary modules created during pickle import.
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 def import_handler(handler_func):
     """Function decorator for declaring custom import handlers."""
@@ -209,7 +211,7 @@ class Network:
         build_kwargs["components"] = self.components
 
         # Build TensorFlow graph to evaluate the network.
-        with tfutil.absolute_variable_scope(self.scope, reuse=True), tf.name_scope(self.name):
+        with tfutil.absolute_variable_scope(self.scope, reuse=True), tf.name_scope(self.name), tf.device('/job:localhost/replica:0/task:0/device:XLA_GPU:0'):
             assert tf.get_variable_scope().name == self.scope
             valid_inputs = [expr for expr in in_expr if expr is not None]
             final_inputs = []
@@ -405,7 +407,7 @@ class Network:
 
                 out_split = []
                 for gpu in range(num_gpus):
-                    with tf.device("/gpu:%d" % gpu):
+                    with tf.device("/job:localhost/replica:0/task:0/device:XLA_GPU:%d" % gpu):
                         net_gpu = self.clone() if assume_frozen else self
                         in_gpu = in_split[gpu]
 
